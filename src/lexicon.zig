@@ -23,6 +23,8 @@ pub fn splitAtHash(ref: []const u8) !struct {
 
     return .{ .prefix = prefix, .suffix = suffix };
 }
+
+const Entry = struct { key: []const u8, val: []const u8 };
 pub fn Query(comptime nsid: []const u8) type {
     return struct {
         alloc: std.mem.Allocator,
@@ -51,17 +53,43 @@ pub fn Query(comptime nsid: []const u8) type {
             const ref = profile.value.object.get("defs").?.object.get("main").?.object.get("output").?.object.get("schema").?.object.get("ref").?.string;
             std.debug.print("ref: {s}\n\n", .{ref});
             const parts = try splitAtHash(ref);
-            const defs = try parseJson("./src/defs.json", self.alloc);
-            defer defs.deinit();
-            const view = defs.value.object.get("defs").?.object.get(parts.suffix).?;
-            var view_buffer = std.ArrayList(u8).init(self.alloc);
-            try std.json.stringify(view, .{}, view_buffer.writer());
-            std.debug.print("view string: {s}\n\n", .{view_buffer.items});
-            // const view_string = try parseValue
-            defer profile.deinit();
-            defer buffer.deinit();
-            defer view_buffer.deinit();
-            return view.object.get("properties").?.object;
+
+            comptime {
+                var comp_buffer: [10000]u8 = undefined;
+                var fba = std.heap.FixedBufferAllocator.init(&comp_buffer);
+                const fba_alloc = fba.allocator();
+
+                const defs = try parseJson("./src/defs.json", fba_alloc);
+                defer defs.deinit();
+                const view = defs.value.object.get("defs").?.object.get(parts.suffix).?;
+                var view_buffer = std.ArrayList(u8).init(fba_alloc);
+                try std.json.stringify(view, .{}, view_buffer.writer());
+                std.debug.print("view string: {s}\n\n", .{view_buffer.items});
+                // const view_string = try parseValue
+                defer profile.deinit();
+                defer buffer.deinit();
+                defer view_buffer.deinit();
+                const properties = view.object.get("properties").?.object;
+                var iterator = properties.iterator();
+
+                var entryList = std.ArrayList(Entry).init(fba_alloc);
+
+                while (iterator.next()) |entry| {
+                    const key = entry.key_ptr.*;
+                    std.debug.print("key: {s}\n", .{key});
+                    const v = entry.value_ptr.*;
+                    const val = v.object.get("type").?.string;
+                    std.debug.print("value: {s}\n", .{val});
+                    if (std.mem.eql(u8, val, "string")) {
+                        try entryList.append(Entry{ .key = key, .val = val });
+                    }
+                }
+                const entries = entryList.items;
+                const property_struct = createStruct(entries.len, entries);
+
+                std.debug.print("properties: {any}\n", .{property_struct});
+                return properties;
+            }
         }
     };
 }
@@ -133,4 +161,18 @@ pub fn parse(self: Self) !void {
     //     }
     //     std.debug.print("{s}: {s}\n", .{ , buffer.items });
     // }
+}
+
+fn createStruct(field_num: usize, entries: []Entry) type {
+    var struct_fields: [field_num]std.builtin.Type.StructField = undefined;
+    for (&struct_fields, entries) |*struct_field, entry| {
+        struct_field.* = .{ .name = entry.key, .type = []const u8, .is_comptime = false, .alignment = 0, .default_value = null };
+    }
+
+    return @Type(.{ .@"struct" = .{
+        .layout = .auto,
+        .fields = &struct_fields,
+        .decls = &.{},
+        .is_tuple = false,
+    } });
 }
