@@ -86,7 +86,6 @@ pub fn MakeRequest(nsid: []const u8) type {
         client: type = client,
 
         pub fn call(c: client, alloc: std.mem.Allocator) ![]const u8 {
-
             // _ = alloc;
             // std.debug.print("calling {}\n", .{c});
             // const x = xrpc.init(c.host, alloc);
@@ -105,6 +104,7 @@ pub fn MakeRequest(nsid: []const u8) type {
                 for (c.fields, 0..) |c_field, i| {
                     if (std.mem.eql(u8, c_field, field.name)) {
                         const str = try std.fmt.allocPrint(alloc, "{s}={s}", .{ field.name, val });
+                        defer alloc.free(str);
                         try buffer.appendSlice(str);
                         if (i < c.fields.len) {
                             try buffer.appendSlice("&");
@@ -119,6 +119,7 @@ pub fn MakeRequest(nsid: []const u8) type {
             const writer = buffer2.writer();
             try std.Uri.Component.percentEncode(writer, nsid, isAllowed);
             const url = std.fmt.allocPrint(alloc, "{s}/xrpc/{s}?{s}", .{ c.host, buffer2.items, buffer.items }) catch return error.FormattingError;
+            defer alloc.free(url);
             return getData(url, alloc);
         }
     };
@@ -138,6 +139,7 @@ pub fn getData(url: []const u8, alloc: std.mem.Allocator) ![]const u8 {
     // defer list.deinit();
     const status = try client.fetch(.{ .location = .{ .url = url }, .response_storage = .{ .dynamic = &list } });
     // const json_string = try req.reader().readAllAlloc(alloc, 81920);
+    defer list.deinit();
     std.debug.print("status: {}\n\n", .{status.status});
     const json_string = list.items;
     // defer alloc.free(json_string);
