@@ -5,25 +5,23 @@ const Identity = struct { did: []const u8, pds: []const u8 };
 const Resolve = struct { identity: Identity = undefined, meta: []const u8 = undefined };
 const Did = struct { did: []const u8 = undefined };
 const DidEndPoint = struct { service: []struct { serviceEndpoint: []const u8 } };
-pub fn OAuth() type {
-    //identity is did & pds
-    // meta is in metadata
-    // https://plc.directory
-    // PDS:/.well-known/oauth-protected-resource
-    // ISSUER:/.well-known/oauth-authorization-server
+const Authorization = struct { authorization_servers: [][]const u8 };
 
-    return struct {
-        pub fn authorize(handle: []const u8, alloc: std.mem.Allocator) ![]const u8 {
-            const redirect_url = "http://127.0.0.1:8080/callback";
-            const res = try resolve(handle, alloc);
-            std.debug.print("{}", .{res.identity});
-            _ = redirect_url;
-            return "https://fixme.com";
-        }
-    };
+//identity is did & pds
+// meta is in metadata
+// https://plc.directory
+// PDS:/.well-known/oauth-protected-resource
+// ISSUER:/.well-known/oauth-authorization-server
+
+pub fn authorize(handle: []const u8, alloc: std.mem.Allocator) ![]const u8 {
+    const redirect_url = "http://127.0.0.1:8080/callback";
+    const res = try resolve(handle, alloc);
+    std.debug.print("{}", .{res.identity});
+    _ = redirect_url;
+    return "https://fixme.com";
 }
 
-fn getMeta(pds_url: []const u8, alloc: std.mem.Allocator) !void {
+fn getAuth(pds_url: []const u8, alloc: std.mem.Allocator) ![]const u8 {
     const resource = ".well-known/oauth-protected-resource";
     // const url = pds_url + "/.well-known/oauth-protected-resource";
     const url = try std.fmt.allocPrint(alloc, "{s}/{s}", .{ pds_url, resource });
@@ -33,6 +31,23 @@ fn getMeta(pds_url: []const u8, alloc: std.mem.Allocator) !void {
     const status = try client.fetch(.{ .location = .{ .url = url }, .response_storage = .{ .dynamic = &list } });
     const response = try list.toOwnedSlice();
     std.debug.print("{} - {s}\n\n", .{ status, response });
+    const authorization = try std.json.parseFromSlice(Authorization, alloc, response, .{ .ignore_unknown_fields = true });
+    const auth_server = authorization.value.authorization_servers[0];
+    const meta = try getMeta(auth_server, alloc);
+    return meta;
+}
+
+fn getMeta(auth_url: []const u8, alloc: std.mem.Allocator) ![]const u8 {
+    const resource = ".well-known/oauth-authorization-server";
+    const url = try std.fmt.allocPrint(alloc, "{s}/{s}", .{ auth_url, resource });
+    var client = std.http.Client{ .allocator = alloc };
+    defer client.deinit();
+    var list = std.ArrayList(u8).init(alloc);
+    const status = try client.fetch(.{ .location = .{ .url = url }, .response_storage = .{ .dynamic = &list } });
+    const response = try list.toOwnedSlice();
+
+    std.debug.print("{} - {s}\n\n", .{ status, response });
+    return response;
 }
 
 pub fn resolve(handle: []const u8, alloc: std.mem.Allocator) !Resolve {
@@ -51,11 +66,11 @@ pub fn resolve(handle: []const u8, alloc: std.mem.Allocator) !Resolve {
     defer did.deinit();
     const did_str = did.value.did;
     const endpoint = try getPds(did_str, alloc);
-    const meta = try getMeta(endpoint.service[0].serviceEndpoint, alloc);
-    _ = meta;
+    const pds_url = endpoint.service[0].serviceEndpoint;
+    const meta = try getAuth(pds_url, alloc);
     std.debug.print("{s}\n\n", .{did_str});
-    const identity = Identity{ .did = did_str, .pds = "" };
-    return Resolve{ .identity = identity, .meta = "" };
+    const identity = Identity{ .did = did_str, .pds = pds_url };
+    return Resolve{ .identity = identity, .meta = meta };
 }
 
 fn getPds(did: []const u8, alloc: std.mem.Allocator) !DidEndPoint {
