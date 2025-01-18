@@ -16,15 +16,15 @@ pub fn index(request: *jetzig.Request) !jetzig.View {
     const actor = params.actor;
     const profile = try xrpc.MakeRequest("app.bsky.actor.getProfile").call(.{ .actor = actor }, request.allocator);
     var root = try request.data(.object);
-    var fbs = std.io.fixedBufferStream(profile);
-    var reader = std.json.reader(request.allocator, fbs.reader());
-    const profile_struct = try std.json.parseFromTokenSource(std.json.Value, alloc, &reader, .{});
-    const parsed = try std.json.parseFromSlice(Profile, alloc, profile, .{});
-    _ = parsed;
+    // var fbs = std.io.fixedBufferStream(profile);
+    // var reader = std.json.reader(request.allocator, fbs.reader());
+    // const profile_struct = try std.json.parseFromTokenSource(std.json.Value, alloc, &reader, .{});
+    const parsed = try std.json.parseFromSlice(Profile, alloc, profile, .{ .ignore_unknown_fields = true });
+    // _ = parsed;
     // const val = try json.parse(profile);
     try root.put("actor", actor);
     try root.put("profile", profile);
-    try root.put("profile_struct", profile_struct.value);
+    try root.put("profile_struct", parsed.value);
     return request.render(.ok);
 }
 
