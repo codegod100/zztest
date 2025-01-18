@@ -1,0 +1,9 @@
+fn getData(url: []const u8, allocator: std.mem.Allocator) ![]const u8 {
+    var client = std.http.Client{ .allocator = allocator };
+    const uri = try std.Uri.parse(url);
+    var server_header_buffer: [10240]u8 = undefined;
+    var req = try client.open(.GET, uri, .{ .server_header_buffer = &server_header_buffer });
+    try req.send();
+    try req.wait();
+    return try req.reader().readAllAlloc(allocator, 81920);
+}

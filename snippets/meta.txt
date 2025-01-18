@@ -1,0 +1,74 @@
+https://www.openmymind.net/Basic-MetaProgramming-in-Zig/
+
+const std = @import("std");
+
+// Simple example using @field to dynamically access struct fields
+pub fn main() !void {
+    const Point = struct {
+        x: i32,
+        y: i32,
+    };
+
+    var point = Point{ .x = 10, .y = 20 };
+
+    // Get field value using @field
+    const x = @field(point, "x");
+    const y = @field(point, "y");
+
+    std.debug.print("x: {}, y: {}\n", .{x, y});
+
+    // Set field value using @field
+    @field(point, "x") = 30;
+    @field(point, "y") = 40;
+
+    std.debug.print("After update - x: {}, y: {}\n", .{point.x, point.y});
+}
+
+
+==================================
+
+const std = @import("std");
+
+fn makeStruct(comptime iter: anytype) type {
+    const empty = struct {};
+    return struct {
+        // Create fields from iterator
+        inline for (iter) |pair| {
+            @field(empty, pair.key): pair.value,
+        }
+    };
+}
+
+pub fn main() !void {
+    // Example iterator with key-value pairs for field names and types
+    const fields = .{
+        .{ .key = "position", .value = i32 },
+        .{ .key = "name", .value = []const u8 },
+        .{ .key = "active", .value = bool },
+    };
+
+    // Create struct type with fields from iterator
+    const MyStruct = makeStruct(&fields);
+
+    // Create instance
+    var thing = MyStruct{
+        .position = 42,
+        .name = "test",
+        .active = true,
+    };
+    
+    std.debug.print("{any}\n", .{thing});
+}
+
+
+=====
+
+fn makeType(comptime fieldName: []const u8) type {
+    return struct {
+        @"field": u8,
+
+        pub fn init() @This() {
+            return .{ .@"field" = 0 };
+        }
+    };
+}

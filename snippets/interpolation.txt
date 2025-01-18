@@ -1,0 +1,5 @@
+const allocator = std.heap.page_allocator;
+var distance: i32 = 7857;
+var str = std.fmt.allocPrint(allocator, "SJC-SGN Distance = {d} miles", .{distance}) catch "format failed";
+
+var str = std.fmt.allocPrint(allocator, "{s}", .{thing}) catch return;

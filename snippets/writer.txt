@@ -1,0 +1,8 @@
+https://zig.guide/standard-library/readers-and-writers/
+
+var buffer = ArrayList(u8).init(self.allocator);
+var writer = buffer.writer();
+
+try buffer.writer().write(
+    "Hello World!",
+);

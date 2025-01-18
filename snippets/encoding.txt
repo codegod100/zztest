@@ -1,0 +1,2 @@
+https://binary-encoding-decoding.mojoauth.com/percent-encoding-url-encoding-with-zig/
+

@@ -1,0 +1,3 @@
+https://travisstaloch.github.io/
+
+https://github.com/travisstaloch/json-schema-gen?tab=readme-ov-file

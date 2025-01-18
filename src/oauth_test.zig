@@ -1,6 +1,9 @@
 const std = @import("std");
 const oauth = @import("./oauth.zig");
 test "oauth" {
-    const url = try oauth.OAuth().authorize("nandi.dads.lol", std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    const alloc = arena.allocator();
+    defer arena.deinit();
+    const url = try oauth.OAuth().authorize("nandi.dads.lol", alloc);
     std.debug.print("{s}\n\n", .{url});
 }
