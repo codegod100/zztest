@@ -120,7 +120,8 @@ pub fn MakeRequest(nsid: []const u8) type {
             try std.Uri.Component.percentEncode(writer, nsid, isAllowed);
             const url = std.fmt.allocPrint(alloc, "{s}/xrpc/{s}?{s}", .{ c.host, buffer2.items, buffer.items }) catch return error.FormattingError;
             defer alloc.free(url);
-            return getData(url, alloc);
+            const data = try getData(url, alloc);
+            return data;
         }
     };
 }
@@ -136,12 +137,13 @@ pub fn getData(url: []const u8, alloc: std.mem.Allocator) ![]const u8 {
     // try req.wait();
     // defer req.deinit();
     var list = std.ArrayList(u8).init(alloc);
-    // defer list.deinit();
+    defer list.deinit();
     const status = try client.fetch(.{ .location = .{ .url = url }, .response_storage = .{ .dynamic = &list } });
     // const json_string = try req.reader().readAllAlloc(alloc, 81920);
     defer list.deinit();
     std.debug.print("status: {}\n\n", .{status.status});
-    const json_string = list.items;
+    const json_string = try list.toOwnedSlice();
+    std.debug.print("{s}\n\n", .{json_string});
     // defer alloc.free(json_string);
     var fbs = std.io.fixedBufferStream(json_string);
     var reader = std.json.reader(alloc, fbs.reader());
