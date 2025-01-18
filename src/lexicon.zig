@@ -44,16 +44,24 @@ pub fn Query(comptime nsid: []const u8) type {
                     },
                 }
             }
-            // const profile_string = try parseValue(profile, self.alloc);
-            // std.debug.print("profile string: {s}\n\n", .{profile_string});
-            // const ref = profile.object.get("defs").?.object.get("main").?.object.get("output").?.object.get("schema").?.object.get("ref").?.string;
-            // const parts = try splitAtHash(ref);
-            // const defs = try parseJson("./src/defs.json", self.alloc);
-            // const view = defs.object.get("defs").?.object.get(parts.suffix).?;
-            // return view.object.get("properties").?.object;
-            // defer profile.object.deinit();
+            var buffer = std.ArrayList(u8).init(self.alloc);
+            try std.json.stringify(profile.value, .{}, buffer.writer());
+            // try profile.value.jsonStringify(buffer.writer());
+            std.debug.print("profile string: {s}\n\n", .{buffer.items});
+            const ref = profile.value.object.get("defs").?.object.get("main").?.object.get("output").?.object.get("schema").?.object.get("ref").?.string;
+            std.debug.print("ref: {s}\n\n", .{ref});
+            const parts = try splitAtHash(ref);
+            const defs = try parseJson("./src/defs.json", self.alloc);
+            defer defs.deinit();
+            const view = defs.value.object.get("defs").?.object.get(parts.suffix).?;
+            var view_buffer = std.ArrayList(u8).init(self.alloc);
+            try std.json.stringify(view, .{}, view_buffer.writer());
+            std.debug.print("view string: {s}\n\n", .{view_buffer.items});
+            // const view_string = try parseValue
             defer profile.deinit();
-            return profile.value.object;
+            defer buffer.deinit();
+            defer view_buffer.deinit();
+            return view.object.get("properties").?.object;
         }
     };
 }
@@ -80,15 +88,16 @@ pub fn init(alloc: std.mem.Allocator) !Self {
 //     };
 // }
 
-fn parseValue(value: std.json.Value, alloc: std.mem.Allocator) ![]const u8 {
+fn parseValue(value: std.json.ObjectMap, alloc: std.mem.Allocator) ![]const u8 {
     var buffer = std.ArrayList(u8).init(alloc);
+    defer buffer.deinit();
     try std.json.stringify(value, .{}, buffer.writer());
     return buffer.items;
 }
 fn parseJson(path: []const u8, a: std.mem.Allocator) !std.json.Parsed(std.json.Value) {
     const content = try std.fs.cwd().readFileAlloc(a, path, 1024 * 1024);
     defer a.free(content);
-    std.debug.print("content: {s}\n\n", .{content});
+    // std.debug.print("content: {s}\n\n", .{content});
     var fbs = std.io.fixedBufferStream(content);
     var reader = std.json.reader(a, fbs.reader());
     defer reader.deinit();
