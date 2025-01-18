@@ -12,6 +12,9 @@ pub fn build(b: *std.Build) !void {
         .optimize = optimize,
     });
 
+    exe.addCSourceFile(.{ .file = b.path("./src/resolve.c") });
+    exe.linkLibC();
+
     // Example Dependency
     // -------------------
     // const iguanas_dep = b.dependency("iguanas", .{ .optimize = optimize, .target = target });

@@ -12,8 +12,8 @@ test "comptime alloc" {
         var reader = std.json.reader(fba_alloc, fbs.reader());
         defer reader.deinit();
 
-        const foo = struct { hello: []const u8 };
-        // const foo = std.json.Value;
+        // const foo = struct { hello: []const u8 };
+        const foo = std.json.Value;
         _ = try std.json.parseFromTokenSourceLeaky(foo, fba.allocator(), &reader, .{});
     }
 }

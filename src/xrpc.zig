@@ -22,6 +22,24 @@ fn createStruct(nsid: []const u8) type {
             .is_tuple = false,
         } });
     }
+    if (std.mem.eql(u8, nsid, "com.atproto.identity.resolveHandle")) {
+        var struct_fields: [3]std.builtin.Type.StructField = undefined;
+        var fields: [1][]const u8 = undefined;
+        comptime fields = .{"handle"};
+
+        struct_fields[0] = std.builtin.Type.StructField{ .name = "fields", .type = [1][]const u8, .is_comptime = false, .alignment = 0, .default_value = @as(?*const anyopaque, @ptrCast(&fields)) };
+        // struct_fields: [6]std.builtin.Type.StructField = undefined;
+        struct_fields[1] = std.builtin.Type.StructField{ .name = "host", .type = []const u8, .is_comptime = false, .alignment = 0, .default_value = @as(?*const anyopaque, @ptrCast(&host)) };
+        struct_fields[2] = std.builtin.Type.StructField{ .name = "handle", .type = []const u8, .is_comptime = false, .alignment = 0, .default_value = null };
+
+        nsid_found = true;
+        return @Type(.{ .@"struct" = .{
+            .layout = .auto,
+            .fields = &struct_fields,
+            .decls = &.{},
+            .is_tuple = false,
+        } });
+    }
     if (std.mem.eql(u8, nsid, "app.bsky.feed.getLikes")) {
         var struct_fields: [4]std.builtin.Type.StructField = undefined;
         var fields: [1][]const u8 = undefined;
@@ -68,11 +86,13 @@ pub fn MakeRequest(nsid: []const u8) type {
         client: type = client,
 
         pub fn call(c: client, alloc: std.mem.Allocator) ![]const u8 {
+
             // _ = alloc;
             // std.debug.print("calling {}\n", .{c});
             // const x = xrpc.init(c.host, alloc);
 
             var buffer = std.ArrayList(u8).init(alloc);
+            defer buffer.deinit();
             // std.debug.print("{}\n", .{moo});
             // try buffer.appendSlice("?");
             inline for (@typeInfo(@TypeOf(c)).@"struct".fields) |field| {
@@ -95,6 +115,7 @@ pub fn MakeRequest(nsid: []const u8) type {
             std.debug.print("buffer items: {s}\n", .{buffer.items});
 
             var buffer2 = std.ArrayList(u8).init(alloc);
+            defer buffer2.deinit();
             const writer = buffer2.writer();
             try std.Uri.Component.percentEncode(writer, nsid, isAllowed);
             const url = std.fmt.allocPrint(alloc, "{s}/xrpc/{s}?{s}", .{ c.host, buffer2.items, buffer.items }) catch return error.FormattingError;
@@ -105,16 +126,26 @@ pub fn MakeRequest(nsid: []const u8) type {
 
 pub fn getData(url: []const u8, alloc: std.mem.Allocator) ![]const u8 {
     var client = std.http.Client{ .allocator = alloc };
-    const uri = try std.Uri.parse(url);
-    var server_header_buffer: [10240]u8 = undefined;
-    var req = try client.open(.GET, uri, .{ .server_header_buffer = &server_header_buffer });
-    try req.send();
-    try req.wait();
-    const json_string = try req.reader().readAllAlloc(alloc, 81920);
+    defer client.deinit();
+    // const uri = try std.Uri.parse(url);
+    // var server_header_buffer: [10240]u8 = undefined;
+    // defer alloc.free(server_header_buffer);
+    // var req = try client.open(.GET, uri, .{ .server_header_buffer = &server_header_buffer });
+    // try req.send();
+    // try req.wait();
+    // defer req.deinit();
+    var list = std.ArrayList(u8).init(alloc);
+    // defer list.deinit();
+    const status = try client.fetch(.{ .location = .{ .url = url }, .response_storage = .{ .dynamic = &list } });
+    // const json_string = try req.reader().readAllAlloc(alloc, 81920);
+    std.debug.print("status: {}\n\n", .{status.status});
+    const json_string = list.items;
+    // defer alloc.free(json_string);
     var fbs = std.io.fixedBufferStream(json_string);
     var reader = std.json.reader(alloc, fbs.reader());
+    defer reader.deinit();
     const json_struct = try std.json.parseFromTokenSource(std.json.Value, alloc, &reader, .{});
-
+    defer json_struct.deinit();
     const err = json_struct.value.object.get("error");
     const message = json_struct.value.object.get("message");
     if (err != null) {
