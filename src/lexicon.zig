@@ -2,12 +2,15 @@ const std = @import("std");
 pub const Self = @This();
 const NSID = enum {
     getProfile,
-    pub fn toString(self: NSID) []const u8 {
-        return switch (self) {
-            .getProfile => "app.bsky.actor.getProfile",
-        };
-    }
 };
+fn enumTable(alloc: std.mem.Allocator) !std.StringHashMap(NSID) {
+    var map = std.StringHashMap(NSID).init(
+        alloc,
+    );
+    // defer map.deinit();
+    try map.put("app.bsky.actor.getProfile", NSID.getProfile);
+    return map;
+}
 pub fn splitAtHash(ref: []const u8) !struct {
     prefix: []const u8,
     suffix: []const u8,
@@ -28,8 +31,12 @@ pub fn Query(comptime nsid: []const u8) type {
             return .{ .alloc = alloc };
         }
         pub fn run(self: Query(nsid)) !std.json.ObjectMap {
-            const nsid_enum = std.meta.stringToEnum(NSID, nsid);
-            var profile: std.json.Value = undefined;
+            var map = try enumTable(self.alloc);
+            defer map.deinit();
+            // const nsid = NSID.toString(nsid);
+            const nsid_enum = map.get(nsid);
+            var profile: std.json.Parsed(std.json.Value) = undefined;
+            std.debug.print("enum val: {any} - {s}\n\n", .{ nsid_enum, nsid });
             if (nsid_enum) |e| {
                 switch (e) {
                     NSID.getProfile => {
@@ -37,18 +44,23 @@ pub fn Query(comptime nsid: []const u8) type {
                     },
                 }
             }
-            const ref = profile.object.get("defs").?.object.get("main").?.object.get("output").?.object.get("schema").?.object.get("ref").?.string;
-            const parts = try splitAtHash(ref);
-            const defs = try parseJson("./src/defs.json", self.alloc);
-            const view = defs.object.get("defs").?.object.get(parts.suffix).?;
-            return view.object.get("properties").?.object;
+            // const profile_string = try parseValue(profile, self.alloc);
+            // std.debug.print("profile string: {s}\n\n", .{profile_string});
+            // const ref = profile.object.get("defs").?.object.get("main").?.object.get("output").?.object.get("schema").?.object.get("ref").?.string;
+            // const parts = try splitAtHash(ref);
+            // const defs = try parseJson("./src/defs.json", self.alloc);
+            // const view = defs.object.get("defs").?.object.get(parts.suffix).?;
+            // return view.object.get("properties").?.object;
+            // defer profile.object.deinit();
+            defer profile.deinit();
+            return profile.value.object;
         }
     };
 }
 
 allocator: std.mem.Allocator,
 ref: []const u8,
-pub fn init(alloc: std.mem.Allocator) anyerror!Self {
+pub fn init(alloc: std.mem.Allocator) !Self {
     const profile = try parseJson("./src/getProfile.json", alloc);
     const ref = profile.object.get("defs").?.object.get("main").?.object.get("output").?.object.get("schema").?.object.get("ref").?.string;
     return Self{ .allocator = alloc, .ref = ref };
@@ -68,13 +80,21 @@ pub fn init(alloc: std.mem.Allocator) anyerror!Self {
 //     };
 // }
 
-fn parseJson(path: []const u8, a: std.mem.Allocator) anyerror!std.json.Value {
+fn parseValue(value: std.json.Value, alloc: std.mem.Allocator) ![]const u8 {
+    var buffer = std.ArrayList(u8).init(alloc);
+    try std.json.stringify(value, .{}, buffer.writer());
+    return buffer.items;
+}
+fn parseJson(path: []const u8, a: std.mem.Allocator) !std.json.Parsed(std.json.Value) {
     const content = try std.fs.cwd().readFileAlloc(a, path, 1024 * 1024);
-
+    defer a.free(content);
+    std.debug.print("content: {s}\n\n", .{content});
     var fbs = std.io.fixedBufferStream(content);
     var reader = std.json.reader(a, fbs.reader());
+    defer reader.deinit();
     const json_struct = try std.json.parseFromTokenSource(std.json.Value, a, &reader, .{});
-    return json_struct.value;
+    // defer json_struct
+    return json_struct;
 }
 pub fn parse(self: Self) !void {
     const profile = try parseJson("./src/getProfile.json", self.allocator);
