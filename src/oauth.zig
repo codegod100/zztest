@@ -9,6 +9,7 @@ const Authorization = struct { authorization_servers: [][]const u8 };
 const Meta = struct { authorization_endpoint: []const u8, pushed_authorization_request_endpoint: []const u8 };
 const ParParams = struct { client_id: []const u8, redirect_uri: []const u8, code_challenge: []const u8, code_challenge_method: []const u8 = "S256", state: []const u8, login_hint: []const u8, response_mode: []const u8, response_type: []const u8 = "code", scope: []const u8 };
 const PKCE = struct { verifier: []const u8, challenge: []const u8 };
+const ParResponse = struct { request_uri: []const u8 };
 const url_safe = std.base64.url_safe;
 
 //identity is did & pds
@@ -69,15 +70,24 @@ pub fn authorize(handle: []const u8, alloc: std.mem.Allocator) ![]const u8 {
     // var reader = std.json.reader(alloc, fbs.reader());
     // defer reader.deinit();
     // const meta_val = try std.json.parseFromTokenSource(std.json.Value, alloc, &reader, .{});
-    const request_uri = "urn%3Aietf%3Aparams%3Aoauth%3Arequest_uri%3Areq-9ab4f41233320fbceff60dc9c429dbb9";
+    // const request_uri = "urn%3Aietf%3Aparams%3Aoauth%3Arequest_uri%3Areq-9ab4f41233320fbceff60dc9c429dbb9";
     const base_auth_url = res.meta.authorization_endpoint;
-    const auth_url = try std.fmt.allocPrint(alloc, "{s}?client_id={s}&request_uri={s}", .{ base_auth_url, client_id_buffer.items, request_uri });
+
     const pkce = try getPKCE(alloc);
     const state = try nonce(alloc);
     var params_json = std.ArrayList(u8).init(alloc);
-    const params = ParParams{ .client_id = client_id, .redirect_uri = redirect_url, .code_challenge = pkce.challenge, .code_challenge_method = "S256", .login_hint = handle, .response_mode = "query", .response_type = "code", .scope = "scope", .state = state };
+    const params = ParParams{ .client_id = client_id, .redirect_uri = redirect_url, .code_challenge = pkce.challenge, .code_challenge_method = "S256", .login_hint = handle, .response_mode = "query", .response_type = "code", .scope = scope, .state = state };
     try std.json.stringify(params, .{}, params_json.writer());
-    std.debug.print("params_json: {s}\n\n", .{params_json.items});
+    std.debug.print("\n\nparams_json: {s}\n\n", .{params_json.items});
+    var client = std.http.Client{ .allocator = alloc };
+    var response = std.ArrayList(u8).init(alloc);
+    const status = try client.fetch(.{ .location = .{
+        .url = res.meta.pushed_authorization_request_endpoint,
+    }, .method = std.http.Method.POST, .payload = params_json.items, .headers = std.http.Client.Request.Headers{ .content_type = std.http.Client.Request.Headers.Value{ .override = "application/json" } }, .response_storage = .{ .dynamic = &response } });
+    std.debug.print("\n{} - {s}\n\n", .{ status, response.items });
+    const par_response = try std.json.parseFromSlice(ParResponse, alloc, response.items, .{ .ignore_unknown_fields = true });
+    const request_uri = par_response.value.request_uri;
+    const auth_url = try std.fmt.allocPrint(alloc, "{s}?client_id={s}&request_uri={s}", .{ base_auth_url, client_id_buffer.items, request_uri });
     return auth_url;
 }
 
