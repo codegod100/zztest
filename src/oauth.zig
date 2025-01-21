@@ -6,7 +6,7 @@ const Resolve = struct { identity: Identity, meta: Meta };
 const Did = struct { did: []const u8 };
 const DidEndPoint = struct { service: []struct { serviceEndpoint: []const u8 } };
 const Authorization = struct { authorization_servers: [][]const u8 };
-const Meta = struct { pushed_authorization_request_endpoint: []const u8 };
+const Meta = struct { authorization_endpoint: []const u8, pushed_authorization_request_endpoint: []const u8 };
 const ParParams = struct { client_id: []const u8, redirect_uri: []const u8, code_challenge: []const u8, code_challenge_method: []const u8 = "S256", state: []const u8, login_hint: []const u8, response_mode: []const u8, response_type: []const u8 = "code", scope: []const u8 };
 const PKCE = struct { verifier: []const u8, challenge: []const u8 };
 const url_safe = std.base64.url_safe;
@@ -16,12 +16,18 @@ const url_safe = std.base64.url_safe;
 // https://plc.directory
 // PDS:/.well-known/oauth-protected-resource
 // ISSUER:/.well-known/oauth-authorization-server
-fn nonce(alloc: std.mem.Allocator) []const u8 {
+fn nonce(alloc: std.mem.Allocator) ![]const u8 {
     var buffer = std.ArrayList(u8).init(alloc);
-    const random_bytes: [16]u8 = undefined;
+    var random_bytes: [16]u8 = undefined;
     std.crypto.random.bytes(&random_bytes);
-    try url_safe.Encoder.encodeWriter(&buffer, random_bytes);
+    try url_safe.Encoder.encodeWriter(buffer.writer(), &random_bytes);
     return buffer.items;
+}
+fn genKey() !void {
+    // https://github.com/furpu/jwt.zig
+    // generate es256 keypair
+    // var private = std.crypto.sign.ecdsa.EcdsaP256.KeyPair.create() catch unreachable;
+    // const public = private.public_key;
 }
 fn isValidChar(c: u8) bool {
     return switch (c) {
@@ -29,12 +35,12 @@ fn isValidChar(c: u8) bool {
         else => false,
     };
 }
-fn pkce(alloc: std.mem.Allocator) type {
+fn getPKCE(alloc: std.mem.Allocator) !PKCE {
     var buffer = std.ArrayList(u8).init(alloc);
-    const random_bytes: [32]u8 = undefined;
+    var random_bytes: [32]u8 = undefined;
     std.crypto.random.bytes(&random_bytes);
 
-    try url_safe.Encoder.encodeWriter(&buffer, random_bytes);
+    try url_safe.Encoder.encodeWriter(buffer.writer(), &random_bytes);
     const verifier = buffer.items;
 
     var hash: [32]u8 = undefined;
@@ -59,13 +65,19 @@ pub fn authorize(handle: []const u8, alloc: std.mem.Allocator) ![]const u8 {
     // const request_uri = redirect_url;
     const res = try resolve(handle, alloc);
     std.debug.print("{}", .{res.identity});
-    var fbs = std.io.fixedBufferStream(res.meta);
-    var reader = std.json.reader(alloc, fbs.reader());
-    defer reader.deinit();
-    const meta_val = try std.json.parseFromTokenSource(std.json.Value, alloc, &reader, .{});
+    // var fbs = std.io.fixedBufferStream(res.meta);
+    // var reader = std.json.reader(alloc, fbs.reader());
+    // defer reader.deinit();
+    // const meta_val = try std.json.parseFromTokenSource(std.json.Value, alloc, &reader, .{});
     const request_uri = "urn%3Aietf%3Aparams%3Aoauth%3Arequest_uri%3Areq-9ab4f41233320fbceff60dc9c429dbb9";
-    const base_auth_url = meta_val.value.object.get("authorization_endpoint").?.string;
+    const base_auth_url = res.meta.authorization_endpoint;
     const auth_url = try std.fmt.allocPrint(alloc, "{s}?client_id={s}&request_uri={s}", .{ base_auth_url, client_id_buffer.items, request_uri });
+    const pkce = try getPKCE(alloc);
+    const state = try nonce(alloc);
+    var params_json = std.ArrayList(u8).init(alloc);
+    const params = ParParams{ .client_id = client_id, .redirect_uri = redirect_url, .code_challenge = pkce.challenge, .code_challenge_method = "S256", .login_hint = handle, .response_mode = "query", .response_type = "code", .scope = "scope", .state = state };
+    try std.json.stringify(params, .{}, params_json.writer());
+    std.debug.print("params_json: {s}\n\n", .{params_json.items});
     return auth_url;
 }
 
