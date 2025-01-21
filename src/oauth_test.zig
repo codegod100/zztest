@@ -6,5 +6,5 @@ test "oauth" {
     defer arena.deinit();
 
     const url = try oauth.authorize("nandi.dads.lol", alloc);
-    std.debug.print("{s}\n\n", .{url});
+    std.debug.print("\n\n{s}\n\n", .{url});
 }
