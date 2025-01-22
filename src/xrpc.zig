@@ -8,11 +8,11 @@ fn createStruct(nsid: []const u8) type {
         var fields: [1][]const u8 = undefined;
         comptime fields = .{"actor"};
 
-        struct_fields[0] = std.builtin.Type.StructField{ .name = "fields", .type = [1][]const u8, .is_comptime = false, .alignment = 0, .default_value = @as(?*const anyopaque, @ptrCast(&fields)) };
+        struct_fields[0] = std.builtin.Type.StructField{ .name = "fields", .type = [1][]const u8, .is_comptime = false, .alignment = 0, .default_value_ptr = @as(?*const anyopaque, @ptrCast(&fields)) };
         // struct_fields: [6]std.builtin.Type.StructField = undefined;
-        struct_fields[1] = std.builtin.Type.StructField{ .name = "host", .type = []const u8, .is_comptime = false, .alignment = 0, .default_value = @as(?*const anyopaque, @ptrCast(&host)) };
-        struct_fields[2] = std.builtin.Type.StructField{ .name = "nsid", .type = []const u8, .is_comptime = false, .alignment = 0, .default_value = @as(?*const anyopaque, @ptrCast(&nsid)) };
-        struct_fields[3] = std.builtin.Type.StructField{ .name = "actor", .type = []const u8, .is_comptime = false, .alignment = 0, .default_value = null };
+        struct_fields[1] = std.builtin.Type.StructField{ .name = "host", .type = []const u8, .is_comptime = false, .alignment = 0, .default_value_ptr = @as(?*const anyopaque, @ptrCast(&host)) };
+        struct_fields[2] = std.builtin.Type.StructField{ .name = "nsid", .type = []const u8, .is_comptime = false, .alignment = 0, .default_value_ptr = @as(?*const anyopaque, @ptrCast(&nsid)) };
+        struct_fields[3] = std.builtin.Type.StructField{ .name = "actor", .type = []const u8, .is_comptime = false, .alignment = 0, .default_value_ptr = null };
 
         nsid_found = true;
         return @Type(.{ .@"struct" = .{
@@ -27,10 +27,10 @@ fn createStruct(nsid: []const u8) type {
         var fields: [1][]const u8 = undefined;
         comptime fields = .{"handle"};
 
-        struct_fields[0] = std.builtin.Type.StructField{ .name = "fields", .type = [1][]const u8, .is_comptime = false, .alignment = 0, .default_value = @as(?*const anyopaque, @ptrCast(&fields)) };
+        struct_fields[0] = std.builtin.Type.StructField{ .name = "fields", .type = [1][]const u8, .is_comptime = false, .alignment = 0, .default_value_ptr = @as(?*const anyopaque, @ptrCast(&fields)) };
         // struct_fields: [6]std.builtin.Type.StructField = undefined;
-        struct_fields[1] = std.builtin.Type.StructField{ .name = "host", .type = []const u8, .is_comptime = false, .alignment = 0, .default_value = @as(?*const anyopaque, @ptrCast(&host)) };
-        struct_fields[2] = std.builtin.Type.StructField{ .name = "handle", .type = []const u8, .is_comptime = false, .alignment = 0, .default_value = null };
+        struct_fields[1] = std.builtin.Type.StructField{ .name = "host", .type = []const u8, .is_comptime = false, .alignment = 0, .default_value_ptr = @as(?*const anyopaque, @ptrCast(&host)) };
+        struct_fields[2] = std.builtin.Type.StructField{ .name = "handle", .type = []const u8, .is_comptime = false, .alignment = 0, .default_value_ptr = null };
 
         nsid_found = true;
         return @Type(.{ .@"struct" = .{
@@ -45,10 +45,10 @@ fn createStruct(nsid: []const u8) type {
         var fields: [1][]const u8 = undefined;
         comptime fields = .{"uri"};
 
-        struct_fields[0] = std.builtin.Type.StructField{ .name = "host", .type = []const u8, .is_comptime = false, .alignment = 0, .default_value = @as(?*const anyopaque, @ptrCast(&host)) };
-        struct_fields[1] = std.builtin.Type.StructField{ .name = "nsid", .type = []const u8, .is_comptime = false, .alignment = 0, .default_value = @as(?*const anyopaque, @ptrCast(&nsid)) };
-        struct_fields[2] = std.builtin.Type.StructField{ .name = "fields", .type = [1][]const u8, .is_comptime = false, .alignment = 0, .default_value = @as(?*const anyopaque, @ptrCast(&fields)) };
-        struct_fields[3] = std.builtin.Type.StructField{ .name = "uri", .type = []const u8, .is_comptime = false, .alignment = 0, .default_value = null };
+        struct_fields[0] = std.builtin.Type.StructField{ .name = "host", .type = []const u8, .is_comptime = false, .alignment = 0, .default_value_ptr = @as(?*const anyopaque, @ptrCast(&host)) };
+        struct_fields[1] = std.builtin.Type.StructField{ .name = "nsid", .type = []const u8, .is_comptime = false, .alignment = 0, .default_value_ptr = @as(?*const anyopaque, @ptrCast(&nsid)) };
+        struct_fields[2] = std.builtin.Type.StructField{ .name = "fields", .type = [1][]const u8, .is_comptime = false, .alignment = 0, .default_value_ptr = @as(?*const anyopaque, @ptrCast(&fields)) };
+        struct_fields[3] = std.builtin.Type.StructField{ .name = "uri", .type = []const u8, .is_comptime = false, .alignment = 0, .default_value_ptr = null };
         nsid_found = true;
         return @Type(.{ .@"struct" = .{
             .layout = .auto,
@@ -62,12 +62,12 @@ fn createStruct(nsid: []const u8) type {
         var fields: [3][]const u8 = undefined;
         comptime fields = .{ "repo", "collection", "rkey" };
 
-        struct_fields[0] = std.builtin.Type.StructField{ .name = "repo", .type = []const u8, .is_comptime = false, .alignment = 0, .default_value = null };
-        struct_fields[1] = std.builtin.Type.StructField{ .name = "collection", .type = []const u8, .is_comptime = false, .alignment = 0, .default_value = null };
-        struct_fields[2] = std.builtin.Type.StructField{ .name = "rkey", .type = []const u8, .is_comptime = false, .alignment = 0, .default_value = null };
-        struct_fields[3] = std.builtin.Type.StructField{ .name = "host", .type = []const u8, .is_comptime = false, .alignment = 0, .default_value = @as(?*const anyopaque, @ptrCast(&host)) };
-        struct_fields[4] = std.builtin.Type.StructField{ .name = "nsid", .type = []const u8, .is_comptime = false, .alignment = 0, .default_value = @as(?*const anyopaque, @ptrCast(&nsid)) };
-        struct_fields[5] = std.builtin.Type.StructField{ .name = "fields", .type = [3][]const u8, .is_comptime = false, .alignment = 0, .default_value = @as(?*const anyopaque, @ptrCast(&fields)) };
+        struct_fields[0] = std.builtin.Type.StructField{ .name = "repo", .type = []const u8, .is_comptime = false, .alignment = 0, .default_value_ptr = null };
+        struct_fields[1] = std.builtin.Type.StructField{ .name = "collection", .type = []const u8, .is_comptime = false, .alignment = 0, .default_value_ptr = null };
+        struct_fields[2] = std.builtin.Type.StructField{ .name = "rkey", .type = []const u8, .is_comptime = false, .alignment = 0, .default_value_ptr = null };
+        struct_fields[3] = std.builtin.Type.StructField{ .name = "host", .type = []const u8, .is_comptime = false, .alignment = 0, .default_value_ptr = @as(?*const anyopaque, @ptrCast(&host)) };
+        struct_fields[4] = std.builtin.Type.StructField{ .name = "nsid", .type = []const u8, .is_comptime = false, .alignment = 0, .default_value_ptr = @as(?*const anyopaque, @ptrCast(&nsid)) };
+        struct_fields[5] = std.builtin.Type.StructField{ .name = "fields", .type = [3][]const u8, .is_comptime = false, .alignment = 0, .default_value_ptr = @as(?*const anyopaque, @ptrCast(&fields)) };
         nsid_found = true;
         return @Type(.{ .@"struct" = .{
             .layout = .auto,
