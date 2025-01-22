@@ -24,13 +24,17 @@
     // internet connectivity.
     .dependencies = .{
         .jetzig = .{
-            .url = "git+https://github.com/jetzig-framework/jetzig#5ebb60d7593ed8c0ba567889c7dc6ce8065b0742",
-            .hash = "1220f444298a1b18b9f3a87cc9c439ca50edaeb31d10ae6bd98edb64f7d37a197cb7",
+            .url = "git+https://github.com/dxps/jetzig#d05857691fb783a243bf9e2775f92cf098d61d5a",
+            .hash = "1220e9b4704787b84a6d73065e79ba8ff197d602c147fef842f6a00b5130ca7cbf80",
         },
         // .@"zig-json" = .{
         //     .url = "https://codeload.github.com/berdon/zig-json/tar.gz/master",
         //     .hash = "1220b6845efacdec3d0e9e9566234ea40095bd8b579ff03a4de6f3ce22c69ccb9176",
         // },
+        .httpz = .{
+            .url = "git+https://github.com/karlseguin/http.zig?ref=master#5e6b7fe1429d6333eaecc20a3c49e29295668394",
+            .hash = "1220fada7a5afd6ceac621296c91968f937ee786bd73da1e332678404b0b9f9afff2",
+        },
     },
     .paths = .{
         "build.zig",

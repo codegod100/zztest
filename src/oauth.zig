@@ -6,11 +6,11 @@ const Resolve = struct { identity: Identity, meta: Meta };
 const Did = struct { did: []const u8 };
 const DidEndPoint = struct { service: []struct { serviceEndpoint: []const u8 } };
 const Authorization = struct { authorization_servers: [][]const u8 };
-const Meta = struct { authorization_endpoint: []const u8, pushed_authorization_request_endpoint: []const u8 };
+const Meta = struct { token_endpoint: []const u8, authorization_endpoint: []const u8, pushed_authorization_request_endpoint: []const u8 };
 const ParParams = struct { client_id: []const u8, redirect_uri: []const u8, code_challenge: []const u8, code_challenge_method: []const u8 = "S256", state: []const u8, login_hint: []const u8, response_mode: []const u8, response_type: []const u8 = "code", scope: []const u8 };
 const PKCE = struct { verifier: []const u8, challenge: []const u8 };
 const ParResponse = struct { request_uri: []const u8 };
-const url_safe = std.base64.url_safe;
+const url_safe = std.base64.url_safe_no_pad;
 
 //identity is did & pds
 // meta is in metadata
@@ -43,7 +43,9 @@ fn getPKCE(alloc: std.mem.Allocator) !PKCE {
 
     try url_safe.Encoder.encodeWriter(buffer.writer(), &random_bytes);
     const verifier = buffer.items;
-
+    const verifier_file = try std.fs.cwd().createFile("verifier.txt", .{});
+    defer verifier_file.close();
+    try verifier_file.writeAll(verifier);
     var hash: [32]u8 = undefined;
     std.crypto.hash.sha2.Sha256.hash(verifier, &hash, .{});
     var encoded = std.ArrayList(u8).init(alloc);
@@ -83,12 +85,35 @@ pub fn authorize(handle: []const u8, alloc: std.mem.Allocator) ![]const u8 {
     var response = std.ArrayList(u8).init(alloc);
     const status = try client.fetch(.{ .location = .{
         .url = res.meta.pushed_authorization_request_endpoint,
-    }, .method = std.http.Method.POST, .payload = params_json.items, .headers = std.http.Client.Request.Headers{ .content_type = std.http.Client.Request.Headers.Value{ .override = "application/json" } }, .response_storage = .{ .dynamic = &response } });
+    }, .method = .POST, .payload = params_json.items, .headers = .{ .content_type = .{ .override = "application/json" } }, .response_storage = .{ .dynamic = &response } });
     std.debug.print("\n{} - {s}\n\n", .{ status, response.items });
     const par_response = try std.json.parseFromSlice(ParResponse, alloc, response.items, .{ .ignore_unknown_fields = true });
     const request_uri = par_response.value.request_uri;
     const auth_url = try std.fmt.allocPrint(alloc, "{s}?client_id={s}&request_uri={s}", .{ base_auth_url, client_id_buffer.items, request_uri });
     return auth_url;
+}
+
+pub fn callback(code: []const u8, alloc: std.mem.Allocator) !void {
+    var client = std.http.Client{ .allocator = alloc };
+    var response = std.ArrayList(u8).init(alloc);
+    const res = try resolve("nandi.dads.lol", alloc);
+    const redirect_url = "http://127.0.0.1:8080/callback";
+    const scope = "atproto transition:generic";
+    const client_id = try std.fmt.allocPrint(alloc, "http://localhost?redirect_uri={s}&scope={s}", .{ redirect_url, scope });
+    const verifier_file = try std.fs.cwd().openFile("verifier.txt", .{});
+    defer verifier_file.close();
+    var verifier = std.ArrayList(u8).init(alloc);
+    try verifier_file.reader().readAllArrayList(&verifier, std.math.maxInt(usize));
+    const verifier_str = verifier.items;
+
+    const params = .{ .client_id = client_id, .grant_type = "authorization_code", .redirect_uri = redirect_url, .code = code, .code_verifier = verifier_str };
+    var params_json = std.ArrayList(u8).init(alloc);
+    try std.json.stringify(params, .{}, params_json.writer());
+    std.debug.print("\n\nparams_json: {s}\n\n", .{params_json.items});
+    const status = try client.fetch(.{ .location = .{
+        .url = res.meta.token_endpoint,
+    }, .method = .POST, .payload = params_json.items, .headers = .{ .content_type = .{ .override = "application/json" } }, .response_storage = .{ .dynamic = &response } });
+    std.debug.print("\n{} - {s}\n\n", .{ status, response.items });
 }
 
 fn getAuth(pds_url: []const u8, alloc: std.mem.Allocator) !Meta {
@@ -144,6 +169,18 @@ pub fn resolve(handle: []const u8, alloc: std.mem.Allocator) !Resolve {
     std.debug.print("{s}\n\n", .{did_str});
     const identity = Identity{ .did = did_str, .pds = pds_url };
     return Resolve{ .identity = identity, .meta = meta };
+}
+const Dpop = struct {};
+fn createJwt(alloc: std.mem.Allocator) Dpop {
+    var x_buf = std.ArrayList(u8).init(alloc);
+    var y_buf = std.ArrayList(u8).init(alloc);
+    const p = std.crypto.sign.ecdsa.EcdsaP256Sha256.KeyPair.generate();
+    const x = p.public_key.p.x.toBytes(.big);
+    try url_safe.Encoder.encodeWriter(x_buf.writer(), &x);
+    const y = p.public_key.p.y.toBytes(.big);
+    try url_safe.Encoder.encodeWriter(y_buf.writer(), &y);
+    const header = .{ .typ = "dpop+jwt", .alg = "ES256", .jwk = .{ .alg = "ES256", .crv = "P-256", .kty = "EC", .x = x_buf.items, .y = y_buf.items } };
+    // const payload = .{.iss = iss}
 }
 
 fn getPds(did: []const u8, alloc: std.mem.Allocator) !DidEndPoint {

@@ -1,5 +1,5 @@
 const std = @import("std");
-const jetzig = @import("jetzig");
+// const jetzig = @import("jetzig");
 
 pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
@@ -12,8 +12,15 @@ pub fn build(b: *std.Build) !void {
         .optimize = optimize,
     });
 
-    exe.addCSourceFile(.{ .file = b.path("./src/resolve.c") });
-    exe.linkLibC();
+    const httpz = b.dependency("httpz", .{
+        .target = target,
+        .optimize = optimize,
+    });
+
+    exe.root_module.addImport("httpz", httpz.module("httpz"));
+
+    // exe.addCSourceFile(.{ .file = b.path("./src/resolve.c") });
+    // exe.linkLibC();
 
     // Example Dependency
     // -------------------
@@ -22,7 +29,7 @@ pub fn build(b: *std.Build) !void {
     //
     // ^ Add all dependencies before `jetzig.jetzigInit()` ^
 
-    try jetzig.jetzigInit(b, exe, .{});
+    // try jetzig.jetzigInit(b, exe, .{});
 
     b.installArtifact(exe);
     // const zigJsonDependency = b.dependency("zig-json", .{ .target = target, .optimize = optimize });
